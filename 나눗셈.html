@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 게임 제목을 '나눗셈'으로 변경 -->
+    <title>나눗셈 탐험 보드게임</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #f0f9ff;
+            --board-bg: #ffffff;
+            --track-color: #e0f2fe;
+            --field-color: #a7f3d0; /* 기존 녹색 필드 유지 */
+            --text-color: #333;
+            --primary-color: #3b82f6;
+            --accent-color-1: #10b981;
+            --accent-color-2: #f59e0b;
+            --accent-color-3: #ef4444;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --font-family: 'Noto Sans KR', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 1000px;
+            aspect-ratio: 1.6 / 1;
+            background-color: var(--board-bg);
+            border-radius: 20px;
+            box-shadow: 0 10px 20px var(--shadow-color);
+            padding: 20px;
+            box-sizing: border-box;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #setup-screen {
+            text-align: center;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        /* 게임 제목을 '나눗셈'으로 변경 */
+        #setup-screen h1 { font-size: 2.5rem; color: var(--primary-color); margin-bottom: 20px; }
+        .setup-group { margin-bottom: 20px; }
+        .setup-group label { font-size: 1.2rem; margin-right: 10px; }
+        .setup-group select, .setup-group input { padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 1rem; }
+        #player-nicknames { margin-top: 15px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+        .nickname-input-group { display: flex; align-items: center; gap: 10px; }
+        #start-game-btn { padding: 15px 30px; font-size: 1.2rem; font-weight: bold; color: white; background-color: var(--accent-color-1); border: none; border-radius: 12px; cursor: pointer; transition: background-color 0.3s, transform 0.2s; }
+        #start-game-btn:hover { background-color: #059669; transform: scale(1.05); }
+
+        #game-screen { display: none; width: 100%; height: 100%; flex-direction: row; gap: 20px; animation: fadeIn 0.5s ease-in-out; }
+        .board-container { flex-grow: 1; position: relative; background: var(--field-color); border-radius: 15px; padding: 10px; border: 5px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1) inset; }
+        #board { display: grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(6, 1fr); width: 100%; height: 100%; position: relative; gap: 2px; }
+        .square { display: flex; flex-direction: column; justify-content: center; align-items: center; font-weight: bold; position: relative; box-shadow: inset 0 0 5px rgba(0,0,0,0.05); border-radius: 4px; background-color: var(--track-color); padding: 2px; text-align: center; }
+        .empty-square { background-color: transparent; box-shadow: none; }
+        .square-content { z-index: 1; font-size: 0.8em; line-height: 1.2; font-weight: bold; } /* 폰트 크기 살짝 줄임 */
+        .square.start { background-color: var(--accent-color-1); color: white; justify-content: center; }
+        .square.finish { background: repeating-linear-gradient(45deg, #333, #333 10px, #fff 10px, #fff 20px); color: var(--primary-color); font-weight: bold; justify-content: center; }
+        .square.bonus { background-color: #fde68a; }
+        .square.trap { background-color: #bfdbfe; }
+        
+        .player-piece { width: 40px; height: 40px; position: absolute; z-index: 10; transition: all 0.3s ease-in-out; font-size: 2rem; text-align: center; line-height: 40px; text-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+
+        .sidebar { width: 250px; display: flex; flex-direction: column; gap: 15px; padding: 20px; background-color: #e0f2fe; border-radius: 15px; }
+        #player-info { background: white; padding: 15px; border-radius: 10px; }
+        #player-info h3 { margin-top: 0;}
+        .player-status { display: flex; align-items: center; margin-bottom: 5px; padding: 5px; border-radius: 5px; transition: background-color 0.3s; font-size: 1.2rem; }
+        .player-status.active { background-color: var(--accent-color-2); color: white; font-weight: bold; }
+        .player-status-char { margin-right: 10px; font-size: 1.5rem; }
+
+        #dice-area { text-align: center; background: white; padding: 20px; border-radius: 10px; perspective: 600px; }
+        #dice-result-text { font-size: 1.5rem; font-weight: bold; margin: 10px 0; color: var(--primary-color); min-height: 27px; }
+        #roll-dice-btn { width: 100%; padding: 15px; font-size: 1.2rem; font-weight: bold; color: white; background-color: var(--primary-color); border: none; border-radius: 10px; cursor: pointer; transition: background-color 0.3s, transform 0.2s; }
+        #roll-dice-btn:disabled { background-color: #9ca3af; cursor: not-allowed; }
+        #roll-dice-btn:not(:disabled):hover { background-color: #2563eb; transform: scale(1.05); }
+
+        #dice-container { height: 60px; display: flex; justify-content: center; align-items: center; margin-bottom: 10px;}
+        .cube { width: 50px; height: 50px; position: relative; transform-style: preserve-3d; transform: translateZ(-25px); transition: transform 1s; }
+        .cube.rolling { animation: roll 1.5s ease-out; }
+        .cube__face { position: absolute; width: 50px; height: 50px; border: 2px solid #333; line-height: 50px; font-size: 30px; font-weight: bold; color: white; text-align: center; background: rgba(59, 130, 246, 0.8); }
+        .cube__face--front  { transform: rotateY( 0deg) translateZ(25px); }
+        .cube__face--right  { transform: rotateY( 90deg) translateZ(25px); }
+        .cube__face--back   { transform: rotateY(180deg) translateZ(25px); }
+        .cube__face--left   { transform: rotateY(-90deg) translateZ(25px); }
+        .cube__face--top    { transform: rotateX( 90deg) translateZ(25px); }
+        .cube__face--bottom { transform: rotateX(-90deg) translateZ(25px); }
+        
+        @keyframes roll {
+            0% { transform: translateZ(-25px) rotateX(0deg) rotateY(0deg); }
+            100% { transform: translateZ(-25px) rotateX(720deg) rotateY(1080deg); }
+        }
+
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.6); display: none; justify-content: center; align-items: center; z-index: 100; animation: fadeIn 0.3s; }
+        .modal-content { background-color: white; padding: 40px; border-radius: 20px; text-align: center; width: 90%; max-width: 500px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); animation: slideIn 0.3s; }
+        #problem-text { font-size: 3.5rem; font-weight: bold; margin: 20px 0; color: var(--primary-color); }
+        #timer { font-size: 2rem; color: var(--accent-color-3); margin-bottom: 20px; }
+        
+        #answer-options { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .answer-option-btn { padding: 20px; font-size: 1.5rem; font-weight: bold; border: 2px solid #ccc; border-radius: 10px; cursor: pointer; background-color: #f8f9fa; transition: all 0.2s; }
+        .answer-option-btn:hover:not(:disabled) { background-color: #e9ecef; border-color: #888; }
+        .answer-option-btn.correct { background-color: var(--accent-color-1); color: white; border-color: var(--accent-color-1); }
+        .answer-option-btn.incorrect { background-color: var(--accent-color-3); color: white; border-color: var(--accent-color-3); }
+        
+        #card-modal-content h2, #feedback-modal-content h2 { font-size: 2.5rem; }
+        #card-modal-content p, #feedback-modal-content p { font-size: 1.5rem; }
+        #close-card-modal-btn, #play-again-btn, #close-feedback-btn { padding: 15px 40px; font-size: 1.2rem; font-weight: bold; color: white; background-color: var(--primary-color); border: none; border-radius: 10px; cursor: pointer; margin-top: 20px; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { from { transform: translateY(-30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        @media (max-width: 900px) {
+            .game-container { aspect-ratio: auto; height: 95vh; }
+            #game-screen { flex-direction: column; }
+            .sidebar { width: 100%; flex-direction: row; justify-content: space-around; padding: 10px; }
+            .board-container { height: 60%; }
+        }
+        @media (max-width: 600px) {
+             #setup-screen h1 { font-size: 2rem; }
+             #problem-text { font-size: 2.5rem; }
+             .answer-option-btn { font-size: 1.2rem; padding: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- 설정 화면 -->
+        <div id="setup-screen">
+            <!-- 게임 제목을 '나눗셈'으로 변경 -->
+            <h1>🎲 나눗셈 탐험 보드게임 🎲</h1>
+            <div class="setup-group">
+                <label for="player-count">참여 인원:</label>
+                <select id="player-count">
+                    <option value="2">2명</option><option value="3">3명</option><option value="4">4명</option>
+                </select>
+            </div>
+            <div class="setup-group">
+                <label for="difficulty">문제 난이도:</label>
+                <select id="difficulty">
+                    <option value="easy">하 (쉬움)</option><option value="medium">중 (보통)</option><option value="hard">상 (어려움)</option>
+                </select>
+            </div>
+            <div class="setup-group">
+                <label>플레이어 정보:</label>
+                <div id="player-nicknames"></div>
+            </div>
+            <button id="start-game-btn">게임 시작!</button>
+        </div>
+
+        <!-- 게임 화면 -->
+        <div id="game-screen">
+            <div class="board-container"><div id="board"></div></div>
+            <div class="sidebar">
+                <div id="player-info">
+                    <h3>플레이어</h3>
+                    <div id="player-status-list"></div>
+                </div>
+                <div id="dice-area">
+                    <h3>주사위</h3>
+                    <div id="dice-container">
+                        <div id="dice-cube" class="cube">
+                            <div class="cube__face cube__face--front"></div><div class="cube__face cube__face--back"></div>
+                            <div class="cube__face cube__face--right"></div><div class="cube__face cube__face--left"></div>
+                            <div class="cube__face cube__face--top"></div><div class="cube__face cube__face--bottom"></div>
+                        </div>
+                    </div>
+                    <div id="dice-result-text">?</div>
+                    <button id="roll-dice-btn">굴리기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="question-modal" class="modal">
+        <div class="modal-content">
+            <!-- 모달 제목을 '나눗셈'으로 변경 -->
+            <h2>나눗셈 문제!</h2>
+            <div id="timer">60</div>
+            <p id="problem-text">123 ÷ 4 = ?</p>
+            <div id="answer-options"></div>
+        </div>
+    </div>
+    <div id="card-modal" class="modal">
+        <div class="modal-content" id="card-modal-content">
+            <h2 id="card-modal-title"></h2><p id="card-effect-text"></p><button id="close-card-modal-btn">확인</button>
+        </div>
+    </div>
+    <div id="feedback-modal" class="modal">
+        <div class="modal-content" id="feedback-modal-content">
+            <h2 id="feedback-title"></h2><p id="feedback-text"></p><button id="close-feedback-btn">확인</button>
+        </div>
+    </div>
+    <div id="game-over-modal" class="modal">
+        <div class="modal-content" id="game-over-modal-content">
+            <h2>🎉 게임 종료! 🎉</h2><p id="winner-text"></p><button id="play-again-btn">다시하기</button>
+        </div>
+    </div>
+
+    <script>
+        const setupScreen = document.getElementById('setup-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const playerCountSelect = document.getElementById('player-count');
+        const difficultySelect = document.getElementById('difficulty');
+        const playerNicknamesDiv = document.getElementById('player-nicknames');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const board = document.getElementById('board');
+        const playerStatusList = document.getElementById('player-status-list');
+        const diceCube = document.getElementById('dice-cube');
+        const diceResultText = document.getElementById('dice-result-text');
+        const rollDiceBtn = document.getElementById('roll-dice-btn');
+        
+        const questionModal = document.getElementById('question-modal');
+        const timerDisplay = document.getElementById('timer');
+        const problemText = document.getElementById('problem-text');
+        const answerOptionsContainer = document.getElementById('answer-options');
+
+        const cardModal = document.getElementById('card-modal');
+        const cardModalTitle = document.getElementById('card-modal-title');
+        const cardEffectText = document.getElementById('card-effect-text');
+        const closeCardModalBtn = document.getElementById('close-card-modal-btn');
+
+        const feedbackModal = document.getElementById('feedback-modal');
+        const feedbackTitle = document.getElementById('feedback-title');
+        const feedbackText = document.getElementById('feedback-text');
+        const closeFeedbackBtn = document.getElementById('close-feedback-btn');
+        
+        const gameOverModal = document.getElementById('game-over-modal');
+        const winnerText = document.getElementById('winner-text');
+        const playAgainBtn = document.getElementById('play-again-btn');
+
+        let players = [];
+        let currentPlayerIndex = 0;
+        let difficulty = 'easy';
+        let timer;
+        let timeLeft = 60;
+        let currentCorrectAnswer = null; // 정답을 저장할 변수
+        const animalCharacters = ['🐰', '🐻', '🦊', '🦁', '🐨', '🐼'];
+        
+        const boardSize = 28;
+         const boardLayout = [ // 레이아웃은 동일하게 유지
+             1,  2,  3,  4,  5,  6,  7,  8,  9, 10,
+            28,  0,  0,  0,  0,  0,  0,  0,  0, 11,
+            27,  0,  0,  0,  0,  0,  0,  0,  0, 12,
+            26,  0,  0,  0,  0,  0,  0,  0,  0, 13,
+            25,  0,  0,  0,  0,  0,  0,  0,  0, 14,
+            24, 23, 22, 21, 20, 19, 18, 17, 16, 15
+        ];
+        
+        // --- [변경] 문제 유형을 '나눗셈'에 맞게 수정 ---
+        const squareTypes = {
+             2: { type: '2d_1d_no_rem', hint: '나머지 없는<br>(두 자리)÷(한 자리)'}, 
+             3: { type: '2d_1d_rem', hint: '나머지 있는<br>(두 자리)÷(한 자리)'}, 
+             4: { type: 'bonus', hint: '🌟'}, 
+             5: { type: '3d_1d', hint: '(세 자리)÷(한 자리)'}, 
+             6: { type: 'division_check', hint: '검산하기'}, 
+             7: { type: 'trap', hint: '💣'}, 
+             8: { type: '2d_1d_no_rem', hint: '나머지 없는<br>(두 자리)÷(한 자리)'}, 
+             9: { type: '3d_1d', hint: '(세 자리)÷(한 자리)'}, 
+            10: { type: '2d_1d_rem', hint: '나머지 있는<br>(두 자리)÷(한 자리)'},
+            11: { type: 'bonus', hint: '🌟'}, 
+            12: { type: 'division_check', hint: '검산하기'}, 
+            13: { type: 'trap', hint: '💣'}, 
+            14: { type: '3d_1d', hint: '(세 자리)÷(한 자리)'}, 
+            15: { type: '2d_1d_no_rem', hint: '나머지 없는<br>(두 자리)÷(한 자리)'},
+            16: { type: '2d_1d_rem', hint: '나머지 있는<br>(두 자리)÷(한 자리)'},
+            17: { type: 'bonus', hint: '🌟'}, 
+            18: { type: '3d_1d', hint: '(세 자리)÷(한 자리)'},
+            19: { type: 'trap', hint: '💣'},
+            20: { type: 'division_check', hint: '검산하기'}, 
+            21: { type: '2d_1d_no_rem', hint: '나머지 없는<br>(두 자리)÷(한 자리)'}, 
+            22: { type: '2d_1d_rem', hint: '나머지 있는<br>(두 자리)÷(한 자리)'},
+            23: { type: '3d_1d', hint: '(세 자리)÷(한 자리)'},
+            24: { type: 'division_check', hint: '검산하기'},
+            25: { type: 'bonus', hint: '🌟'}, 
+            26: { type: 'trap', hint: '💣'}, 
+            27: { type: '3d_1d', hint: '(세 자리)÷(한 자리)'},
+        };
+
+        const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+        // --- [변경] 문제 생성 로직을 '나눗셈'에 맞게 수정 ---
+        const questionGenerators = {
+            '2d_1d_no_rem': { // (두 자리) ÷ (한 자리), 나머지 없음
+                easy: () => { const n2 = rand(2, 4), q = rand(5, 15), n1 = n2 * q; return { a: q, q: `${n1} ÷ ${n2}`}; },
+                medium: () => { const n2 = rand(3, 9), q = rand(11, 25), n1 = n2 * q; return { a: q, q: `${n1} ÷ ${n2}`}; },
+                hard: () => { const n2 = rand(6, 9), q = rand(11, 33), n1 = n2 * q; if(n1 >= 100) return questionGenerators['2d_1d_no_rem'].medium(); return { a: q, q: `${n1} ÷ ${n2}`}; }
+            },
+            '2d_1d_rem': { // (두 자리) ÷ (한 자리), 나머지 있음 (답 형식: "몫 ... 나머지")
+                _gen: (n1_min, n1_max, n2_min, n2_max) => {
+                    let n1, n2, q, r;
+                    do {
+                        n2 = rand(n2_min, n2_max);
+                        n1 = rand(n1_min, n1_max);
+                        r = n1 % n2;
+                    } while (r === 0); // 나머지가 0이 아닐 때까지
+                    q = Math.floor(n1 / n2);
+                    return { a: `${q} ... ${r}`, q: `${n1} ÷ ${n2}` };
+                },
+                easy: () => questionGenerators['2d_1d_rem']._gen(10, 50, 2, 5),
+                medium: () => questionGenerators['2d_1d_rem']._gen(30, 99, 3, 9),
+                hard: () => questionGenerators['2d_1d_rem']._gen(50, 99, 6, 9)
+            },
+            '3d_1d': { // (세 자리) ÷ (한 자리) (나머지 0 포함)
+                _gen: (n1_min, n1_max, n2_min, n2_max) => {
+                    const n2 = rand(n2_min, n2_max);
+                    const n1 = rand(n1_min, n1_max);
+                    const q = Math.floor(n1 / n2);
+                    const r = n1 % n2;
+                    // 나머지가 0이면 몫만, 아니면 "몫 ... 나머지"
+                    const ans = (r === 0) ? q.toString() : `${q} ... ${r}`;
+                    return { a: ans, q: `${n1} ÷ ${n2}` };
+                },
+                easy: () => questionGenerators['3d_1d']._gen(100, 300, 2, 5),
+                medium: () => questionGenerators['3d_1d']._gen(100, 999, 3, 9),
+                hard: () => questionGenerators['3d_1d']._gen(300, 999, 6, 9)
+            },
+            'division_check': { // 검산하기 (답 형식: "O (맞아요)" or "X (틀려요)")
+                _gen: (q_min, q_max, n2_min, n2_max) => {
+                    const n2 = rand(n2_min, n2_max);
+                    const q = rand(q_min, q_max);
+                    const r = rand(0, n2 - 1); // 나머지는 0이거나 나누는 수보다 작음
+                    const n1 = n2 * q + r;
+                    
+                    if (Math.random() > 0.5) { // 올바른 식
+                        return { a: 'O (맞아요)', q: `${n1} = ${n2} × ${q} + ${r}` };
+                    } else { // 틀린 식
+                        const type = rand(1, 3);
+                        let wrong_q = q, wrong_r = r, wrong_n2 = n2;
+                        if (type === 1) wrong_q += rand(1, 3);
+                        else if (type === 2) wrong_r = (r + rand(1, 2)) % (n2 + 1); // 틀린 나머지 (0이 될 수도 있음)
+                        else wrong_n2 += 1;
+                        // 정답과 우연히 같아지는 경우 방지
+                        if (wrong_q === q && wrong_r === r && wrong_n2 === n2) wrong_q += 1;
+                        
+                        return { a: 'X (틀려요)', q: `${n1} = ${wrong_n2} × ${wrong_q} + ${wrong_r}` };
+                    }
+                },
+                easy: () => questionGenerators['division_check']._gen(5, 15, 2, 5),
+                medium: () => questionGenerators['division_check']._gen(10, 30, 3, 9),
+                hard: () => {
+                    const n1 = rand(100, 999), n2 = rand(6,9);
+                    const q = Math.floor(n1/n2), r = n1 % n2;
+                    return questionGenerators['division_check']._gen(q, q, n2, n2); // 3자리수 기반 검산
+                }
+            }
+        };
+
+        function init() {
+            playerCountSelect.addEventListener('change', updateNicknameInputs);
+            startGameBtn.addEventListener('click', startGame);
+            rollDiceBtn.addEventListener('click', rollDice);
+            playAgainBtn.addEventListener('click', () => location.reload());
+            updateNicknameInputs();
+            createBoard();
+        }
+
+        function createBoard() {
+            board.innerHTML = '';
+            boardLayout.forEach(id => {
+                const square = document.createElement('div');
+                if (id === 0) {
+                    square.className = 'square empty-square';
+                } else {
+                    square.className = 'square';
+                    square.dataset.squareId = id;
+                    const typeInfo = squareTypes[id];
+                    let content = ``;
+
+                    if (id === 1) { square.classList.add('start'); content = '출발'; } 
+                    else if (id === boardSize) { square.classList.add('finish'); content = '🏁'; } 
+                    else if (typeInfo) {
+                        if (typeInfo.type === 'bonus') square.classList.add('bonus');
+                        else if (typeInfo.type === 'trap') square.classList.add('trap');
+                        content = typeInfo.hint;
+                    } else { 
+                        // squareTypes에 정의되지 않은 칸(드물지만)을 위한 예외 처리
+                        const keys = Object.keys(questionGenerators);
+                        const randomType = keys[rand(0, keys.length - 1)];
+                        squareTypes[id] = { type: randomType, hint: randomType.replace(/_/g, ' ') };
+                        content = squareTypes[id].hint;
+                    }
+                    square.innerHTML = `<span class="square-content">${content}</span>`;
+                }
+                board.appendChild(square);
+            });
+        }
+        
+        function updateNicknameInputs() {
+            const count = parseInt(playerCountSelect.value);
+            playerNicknamesDiv.innerHTML = '';
+            for (let i = 0; i < count; i++) {
+                const div = document.createElement('div');
+                div.className = 'nickname-input-group';
+                const charSelect = document.createElement('select');
+                charSelect.id = `player-char-${i}`;
+                animalCharacters.forEach((char, index) => {
+                    const option = document.createElement('option');
+                    option.value = char; option.textContent = char;
+                    if (i === index) option.selected = true;
+                    charSelect.appendChild(option);
+                });
+                div.innerHTML = `<label for="player${i+1}">P${i+1}:</label><input type="text" id="player${i+1}" value="플레이어${i+1}">`;
+                div.appendChild(charSelect);
+                playerNicknamesDiv.appendChild(div);
+            }
+        }
+        
+        function startGame() {
+            difficulty = difficultySelect.value;
+            players = Array.from({ length: parseInt(playerCountSelect.value) }, (_, i) => ({
+                name: document.getElementById(`player${i+1}`).value || `플레이어${i+1}`,
+                character: document.getElementById(`player-char-${i}`).value,
+                position: 1, prevPosition: 1, skipTurn: false,
+            }));
+
+            players.forEach((p, i) => {
+                const piece = document.createElement('div');
+                piece.id = `player-piece-${i}`;
+                piece.className = 'player-piece';
+                piece.textContent = p.character;
+                board.appendChild(piece);
+            });
+
+            setupScreen.style.display = 'none';
+            gameScreen.style.display = 'flex';
+            currentPlayerIndex = 0;
+            updateUI();
+        }
+
+        function updateUI() {
+            playerStatusList.innerHTML = '';
+            players.forEach((player, index) => {
+                const statusDiv = document.createElement('div');
+                statusDiv.className = `player-status ${index === currentPlayerIndex ? 'active' : ''}`;
+                statusDiv.innerHTML = `<span class="player-status-char">${player.character}</span><span>${player.name}</span>`;
+                playerStatusList.appendChild(statusDiv);
+                updatePlayerPiecePosition(index);
+            });
+            rollDiceBtn.disabled = false;
+            diceResultText.textContent = "?";
+            diceCube.className = 'cube';
+        }
+        
+        function updatePlayerPiecePosition(playerIndex) {
+            const player = players[playerIndex];
+            const piece = document.getElementById(`player-piece-${playerIndex}`);
+            if (!piece) return;
+
+            const targetSquare = board.querySelector(`[data-square-id='${player.position}']`);
+            if (targetSquare) {
+                const boardRect = board.getBoundingClientRect();
+                const squareRect = targetSquare.getBoundingClientRect();
+                const offsetX = (playerIndex % 2) * (piece.offsetWidth / 2);
+                const offsetY = Math.floor(playerIndex / 2) * (piece.offsetHeight / 2);
+                piece.style.left = `${squareRect.left - boardRect.left + (squareRect.width - piece.offsetWidth) / 2 + offsetX}px`;
+                piece.style.top = `${squareRect.top - boardRect.top + (squareRect.height - piece.offsetHeight) / 2 + offsetY}px`;
+            }
+        }
+
+        function rollDice() {
+            rollDiceBtn.disabled = true;
+            const roll = rand(1, 6);
+            
+            diceCube.classList.add('rolling');
+            setTimeout(() => {
+                diceCube.classList.remove('rolling');
+                diceResultText.textContent = `${roll}칸 이동!`;
+                
+                setTimeout(() => {
+                    const player = players[currentPlayerIndex];
+                    player.prevPosition = player.position;
+                    animatePlayer(currentPlayerIndex, roll, (finalPosition) => {
+                        processLanding(finalPosition);
+                    });
+                }, 500);
+            }, 1500);
+        }
+
+        function animatePlayer(playerIndex, steps, onComplete) {
+            const player = players[playerIndex];
+            let stepsTaken = 0;
+            const direction = Math.sign(steps);
+
+            const step = () => {
+                if (stepsTaken >= Math.abs(steps)) {
+                    if (onComplete) onComplete(player.position);
+                    return;
+                }
+                
+                const currentPos = player.position;
+                if ((direction > 0 && currentPos >= boardSize) || (direction < 0 && currentPos <= 1)) {
+                     // 1칸 미만으로 후진하거나, 도착칸 넘어서 전진하려 할 때
+                     if(direction < 0 && currentPos <= 1) player.position = 1;
+                     if(onComplete) onComplete(player.position);
+                     return;
+                }
+
+                player.position += direction;
+                if (player.position < 1) player.position = 1; // 1번 칸 밑으로 안 가도록
+                updatePlayerPiecePosition(playerIndex);
+                stepsTaken++;
+                setTimeout(step, 300);
+            };
+            step();
+        }
+        
+        function processLanding(position) {
+            if (position >= boardSize) {
+                endGame();
+                return;
+            }
+            
+            const squareTypeInfo = squareTypes[position];
+            if (squareTypeInfo && (squareTypeInfo.type === 'bonus' || squareTypeInfo.type === 'trap')) {
+                handleSpecialSquare(squareTypeInfo.type);
+            } else {
+                showQuestionModal(position);
+            }
+        }
+        
+        function showFeedbackModal(title, message, callback) {
+            feedbackTitle.textContent = title;
+            feedbackText.textContent = message;
+            feedbackModal.style.display = 'flex';
+            closeFeedbackBtn.onclick = () => {
+                feedbackModal.style.display = 'none';
+                closeFeedbackBtn.onclick = null;
+                if (callback) callback();
+            };
+        }
+
+        function handleSpecialSquare(type) {
+            const player = players[currentPlayerIndex];
+            // --- [변경] 카드 텍스트를 '나눗셈'에 맞게 수정 ---
+            const bonusCards = [
+                { text: "나눗셈 천재! 앞으로 3칸 이동!", effect: 3 },
+                { text: "친구가 도와줬어요! 주사위 한 번 더!", effect: 0, special: 'reroll'},
+            ];
+            const trapCards = [
+                { text: "나머지를 빠뜨렸어요... 뒤로 2칸 이동.", effect: -2 },
+                { text: "너무 어려워! 다음 턴 한 번 쉬기.", effect: 0, special: 'skip'},
+            ];
+            
+            const cards = type === 'bonus' ? bonusCards : trapCards;
+            const card = cards[rand(0, cards.length - 1)];
+            
+            cardModalTitle.textContent = type === 'bonus' ? '🌟 황금 카드 🌟' : '💣 함정 카드 💣';
+            cardEffectText.textContent = card.text;
+            cardModal.style.display = 'flex';
+            
+            closeCardModalBtn.onclick = () => {
+                cardModal.style.display = 'none';
+                closeCardModalBtn.onclick = null;
+                
+                if (card.special === 'reroll') {
+                    currentPlayerIndex--; // nextTurn()에서 ++되므로, 현재 플레이어가 다시 하도록
+                } else if (card.special === 'skip') {
+                    player.skipTurn = true;
+                }
+
+                if (card.effect !== 0) {
+                    // animatePlayer 콜백에서 nextTurn을 부르도록 수정
+                    animatePlayer(currentPlayerIndex, card.effect, (finalPosition) => {
+                         // 보너스/함정 칸 이동 후 또 다른 칸을 밟으면 처리
+                         if (finalPosition >= boardSize) {
+                            endGame();
+                        } else if (finalPosition !== player.prevPosition) {
+                            processLanding(finalPosition);
+                        } else {
+                            nextTurn();
+                        }
+                    });
+                } else {
+                    nextTurn();
+                }
+            };
+        }
+
+        // --- [변경] 문제 생성 로직 수정 ---
+        function generateQuestion(squareId) {
+            const typeInfo = squareTypes[squareId];
+            if (!typeInfo) return null;
+            const generatorGroup = questionGenerators[typeInfo.type];
+            if (!generatorGroup) return null;
+            const problem = generatorGroup[difficulty](); // { a: "정답", q: "문제" }
+            
+            let options; // 선택지 배열
+
+            if (typeInfo.type === 'division_check') {
+                // 검산하기 문제는 O/X 2개만
+                options = [
+                    { text: 'O (맞아요)', isCorrect: problem.a === 'O (맞아요)' },
+                    { text: 'X (틀려요)', isCorrect: problem.a === 'X (틀려요)' }
+                ];
+                // 2개만 있으므로 섞을 필요 없음 (혹은 섞어도 됨)
+                 return {
+                    question: problem.q,
+                    options: options.sort(() => Math.random() - 0.5)
+                };
+
+            } else if (typeof problem.a === 'string') { // 답이 문자열인 경우 (예: "12 ... 3")
+                const optionsSet = new Set([problem.a]);
+                const parts = problem.a.split(' ... ');
+                const q_ans = parseInt(parts[0]);
+                const r_ans = parseInt(parts[1]); // r_ans가 undefined일 수 있음 (3d_1d에서 나머지 0)
+                
+                while (optionsSet.size < 4) {
+                    const type = rand(1, 3);
+                    let wrongAns;
+                    if (type === 1) wrongAns = `${q_ans + rand(1, 3)} ... ${r_ans}`;
+                    else if (type === 2 && r_ans !== undefined) wrongAns = `${q_ans} ... ${(r_ans + rand(1, 3)) % (q_ans + 5)}`; // 나머지 변경
+                    else wrongAns = `${Math.max(0, q_ans - rand(1, 2))} ... ${r_ans}`;
+                    if (wrongAns !== problem.a) optionsSet.add(wrongAns);
+                }
+                options = Array.from(optionsSet);
+
+            } else { // 답이 숫자인 경우 (예: 나머지 없는 몫)
+                const optionsSet = new Set([problem.a]);
+                while (optionsSet.size < 4) {
+                    const wrongAns = problem.a + rand(-10, 10);
+                    if (wrongAns !== problem.a && wrongAns >= 0) optionsSet.add(wrongAns);
+                }
+                options = Array.from(optionsSet);
+            }
+            
+            return {
+                question: problem.q,
+                options: options.sort(() => Math.random() - 0.5).map(val => ({
+                    text: val.toString(), // 모두 문자열로 통일
+                    isCorrect: val.toString() === problem.a.toString()
+                }))
+            };
+        }
+
+        // --- [변경] showQuestionModal 수정 ---
+        function showQuestionModal(targetPosition) {
+            const problem = generateQuestion(targetPosition);
+            if(!problem) { nextTurn(); return; }
+
+            problemText.textContent = problem.question;
+            answerOptionsContainer.innerHTML = '';
+            // 정답을 전역 변수에 저장
+            currentCorrectAnswer = problem.options.find(opt => opt.isCorrect).text;
+            
+            // 검산 문제일 경우 버튼 2개만 꽉 차게
+            if (problem.options.length === 2) {
+                 answerOptionsContainer.style.gridTemplateColumns = '1fr 1fr';
+            } else {
+                 answerOptionsContainer.style.gridTemplateColumns = '1fr 1fr';
+            }
+
+            problem.options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'answer-option-btn';
+                btn.textContent = opt.text;
+                btn.onclick = (event) => handleAnswerClick(event, opt.isCorrect);
+                answerOptionsContainer.appendChild(btn);
+            });
+
+            questionModal.style.display = 'flex';
+            startTimer();
+        }
+
+        // --- [변경] handleAnswerClick 수정 ---
+        function handleAnswerClick(event, isCorrect) {
+            clearInterval(timer);
+            const player = players[currentPlayerIndex];
+            const buttons = answerOptionsContainer.querySelectorAll('button');
+            
+            // eval() 대신 currentCorrectAnswer 사용
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                if(btn.textContent === currentCorrectAnswer.toString()) {
+                     btn.classList.add('correct');
+                }
+            });
+            
+            if (!isCorrect && event.target) { // event.target이 있을 때만
+                event.target.classList.add('incorrect');
+            }
+
+            setTimeout(() => {
+                questionModal.style.display = 'none';
+                if(isCorrect) {
+                    showFeedbackModal('정답입니다! 🥳', '', nextTurn);
+                } else {
+                    showFeedbackModal('아쉬워요! 😢', '틀렸습니다. 원래 위치로 돌아갑니다.', () => {
+                        const stepsToMove = player.prevPosition - player.position;
+                        animatePlayer(currentPlayerIndex, stepsToMove, nextTurn);
+                    });
+                }
+            }, 1500);
+        }
+
+        function startTimer() {
+            timeLeft = 60;
+            timerDisplay.textContent = timeLeft;
+            timer = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    // 시간이 다 되면, 정답이 아닌 첫 번째 버튼을 클릭한 것처럼 처리
+                    const incorrectButton = Array.from(answerOptionsContainer.querySelectorAll('button')).find(btn => btn.textContent !== currentCorrectAnswer);
+                    // 만약 버튼이 2개(O/X) 뿐이라면
+                    const btnToClick = incorrectButton || answerOptionsContainer.querySelector('button');
+                    handleAnswerClick({target: btnToClick}, false); 
+                }
+            }, 1000);
+        }
+
+        function nextTurn() {
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+            
+            const currentPlayer = players[currentPlayerIndex];
+            if (currentPlayer.skipTurn) {
+                currentPlayer.skipTurn = false;
+                showFeedbackModal('😥 한 턴 쉼', `${currentPlayer.name}님은 이번 턴 쉬어갑니다!`, nextTurn);
+            } else {
+                updateUI();
+            }
+        }
+        
+        function endGame() {
+            winnerText.textContent = `축하합니다, ${players[currentPlayerIndex].name}님 우승! 🏆`;
+            gameOverModal.style.display = 'flex';
+            rollDiceBtn.disabled = true;
+        }
+
+        window.addEventListener('resize', () => {
+            players.forEach((_, i) => updatePlayerPiecePosition(i));
+        });
+
+        init();
+    </script>
+</body>
+</html>
